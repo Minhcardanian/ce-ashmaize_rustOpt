@@ -29,7 +29,7 @@ use ashmaize::hash;
 let digest = hash(b"salt", &rom, 8, 256);
 # assert_eq!(
 #      digest,
-#      [39, 200, 35, 132, 250, 151, 62, 36, 195, 37, 55, 6, 49, 113, 39, 252, 116, 112, 101, 81, 253, 131, 10, 219, 152, 249, 52, 72, 200, 130, 140, 178, 31, 219, 153, 103, 73, 154, 110, 196, 245, 10, 65, 203, 223, 3, 64, 51, 154, 179, 86, 174, 136, 107, 27, 89, 29, 235, 97, 95, 230, 159, 207, 58]
+#      [28, 73, 167, 240, 198, 207, 185, 193, 107, 65, 99, 45, 137, 161, 84, 110, 194, 204, 56, 134, 187, 133, 100, 255, 115, 106, 31, 29, 19, 25, 12, 73, 12, 23, 24, 142, 158, 14, 151, 187, 57, 164, 98, 249, 163, 248, 235, 20, 247, 254, 20, 185, 57, 171, 97, 210, 227, 139, 99, 168, 244, 233, 47, 65]
 # );```
 
 */
@@ -64,6 +64,7 @@ struct VM {
     prog_digest: blake2b::Context<512>,
     mem_digest: blake2b::Context<512>,
     prog_seed: [u8; 64],
+    mixing_out: Vec<u8>,
     memory_counter: u32,
     loop_counter: u32,
 }
@@ -175,6 +176,7 @@ impl VM {
             prog_digest,
             mem_digest,
             prog_seed,
+            mixing_out: vec![0; NB_REGS * REGISTER_SIZE * 32],
             ip: 0,
             loop_counter: 0,
             memory_counter: 0,
@@ -209,10 +211,9 @@ impl VM {
             .update(&mem_value)
             .update(&self.loop_counter.to_le_bytes())
             .finalize();
-        let mut mixing_out = vec![0; NB_REGS * REGISTER_SIZE * 32];
-        argon2::hprime(&mut mixing_out, &mixing_value);
+        argon2::hprime(&mut self.mixing_out, &mixing_value);
 
-        for mem_chunks in mixing_out.chunks(NB_REGS * REGISTER_SIZE) {
+        for mem_chunks in self.mixing_out.chunks(NB_REGS * REGISTER_SIZE) {
             for (reg, reg_chunk) in self.regs.iter_mut().zip(mem_chunks.chunks(8)) {
                 *reg ^= u64::from_le_bytes(*<&[u8; 8]>::try_from(reg_chunk).unwrap())
             }
@@ -389,7 +390,7 @@ fn execute_one_instruction(vm: &mut VM, rom: &Rom) {
                     if src2 == 0 {
                         special1_value64!(vm)
                     } else {
-                        src1 / src2
+                        src1 % src2
                     }
                 }
                 Op3::And => src1 & src2,
@@ -513,10 +514,10 @@ mod tests {
         const NB_INSTR: u32 = 256;
 
         const EXPECTED: [u8; 64] = [
-            56, 148, 1, 228, 59, 96, 211, 173, 9, 98, 68, 61, 89, 171, 124, 171, 124, 183, 200,
-            196, 29, 43, 133, 168, 218, 217, 255, 71, 234, 182, 97, 158, 231, 156, 56, 230, 61, 54,
-            248, 199, 150, 15, 66, 0, 149, 185, 85, 177, 192, 220, 237, 77, 195, 106, 140, 223,
-            175, 93, 238, 220, 57, 159, 180, 243,
+            162, 175, 18, 231, 188, 219, 174, 96, 166, 86, 46, 23, 99, 176, 96, 55, 155, 198, 229,
+            53, 1, 212, 219, 197, 164, 176, 34, 105, 205, 116, 105, 157, 21, 180, 90, 106, 48, 149,
+            144, 21, 132, 228, 244, 141, 59, 48, 255, 223, 234, 120, 14, 110, 43, 211, 31, 15, 218,
+            42, 134, 71, 202, 226, 237, 230,
         ];
 
         let rom = Rom::new(

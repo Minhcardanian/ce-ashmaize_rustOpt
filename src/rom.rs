@@ -86,7 +86,8 @@ impl Rom {
     }
 
     pub(crate) fn at(&self, i: u32) -> &[u8; DATASET_ACCESS_SIZE] {
-        let start = i as usize % (self.data.len() / DATASET_ACCESS_SIZE);
+        let chunk_index = i as usize % (self.data.len() / DATASET_ACCESS_SIZE);
+        let start = chunk_index * DATASET_ACCESS_SIZE;
         <&[u8; DATASET_ACCESS_SIZE]>::try_from(&self.data[start..start + DATASET_ACCESS_SIZE])
             .unwrap()
     }
