@@ -148,7 +148,8 @@ impl VM {
 
         let mut init_buffer = [0; REGS_CONTENT_SIZE + 3 * DIGEST_INIT_SIZE];
 
-        let mut init_buffer_input = rom_digest.0.to_vec();
+        let mut init_buffer_input = Vec::with_capacity(rom_digest.0.len() + salt.len());
+        init_buffer_input.extend_from_slice(&rom_digest.0);
         init_buffer_input.extend_from_slice(salt);
         argon2::hprime(&mut init_buffer, &init_buffer_input);
 
@@ -160,8 +161,8 @@ impl VM {
         }
 
         let mut digests = init_buffer_digests.chunks(DIGEST_INIT_SIZE);
-        let prog_digest = Blake2b::<512>::new().update(&digests.next().unwrap());
-        let mem_digest = Blake2b::<512>::new().update(&digests.next().unwrap());
+        let prog_digest = Blake2b::<512>::new().update(digests.next().unwrap());
+        let mem_digest = Blake2b::<512>::new().update(digests.next().unwrap());
         let prog_seed = *<&[u8; 64]>::try_from(digests.next().unwrap()).unwrap();
 
         assert_eq!(digests.next(), None);
@@ -398,11 +399,8 @@ fn execute_one_instruction(vm: &mut VM, rom: &Rom) {
                         .update(&src1.to_le_bytes())
                         .update(&src2.to_le_bytes())
                         .finalize();
-                    if let Some(chunk) = out.chunks(8).nth(v as usize) {
-                        u64::from_le_bytes(*<&[u8; 8]>::try_from(chunk).unwrap())
-                    } else {
-                        panic!("chunk doesn't exist")
-                    }
+                    let start = (v as usize) * 8;
+                    u64::from_le_bytes(*<&[u8; 8]>::try_from(&out[start..start + 8]).unwrap())
                 }
             };
 
