@@ -61,7 +61,7 @@ pub fn Ashmaize() -> impl IntoView {
                 salt += 1;
 
                 // Update status periodically
-                if hash_count % 10000 == 0 {
+                if hash_count.is_multiple_of(10000) {
                     set_status.set(format!("Tried {} hashes...", hash_count));
                 }
             }
@@ -122,10 +122,9 @@ pub fn Ashmaize() -> impl IntoView {
                                 class="w-full p-2 border border-gray-600 bg-gray-800 text-gray-100 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                 value=move || difficulty.get().to_string()
                                 on:input=move |ev| {
-                                    if let Ok(val) = event_target_value(&ev).parse::<u32>() {
-                                        if val >= 1 && val <= 32 {
-                                            set_difficulty.set(val);
-                                        }
+                                    if let Ok(val) = event_target_value(&ev).parse::<u32>()
+                                        && (1..=32).contains(&val) {
+                                        set_difficulty.set(val);
                                     }
                                 }
                             />

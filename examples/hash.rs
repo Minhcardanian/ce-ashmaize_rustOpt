@@ -54,7 +54,7 @@ fn main() {
                 pre_size: 16 * MB,
                 mixing_numbers: 4,
             },
-            1 * GB,
+            GB,
         );
 
         let params = GlobalParams {
